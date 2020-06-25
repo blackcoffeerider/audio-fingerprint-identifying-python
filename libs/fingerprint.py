@@ -1,4 +1,6 @@
-import hashlib
+#import hashlib
+# import xxhash
+import pyhash
 import numpy as np
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
@@ -8,8 +10,8 @@ from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import (generate_binary_structure, iterate_structure, binary_erosion)
 from operator import itemgetter
 
-IDX_FREQ_I = 0
-IDX_TIME_J = 1
+IDX_FREQ_I = 1
+IDX_TIME_J = 0
 
 # Sampling rate, related to the Nyquist conditions, which affects
 # the range frequencies we can detect.
@@ -21,27 +23,27 @@ DEFAULT_WINDOW_SIZE = 4096
 # Ratio by which each sequential window overlaps the last and the
 # next window. Higher overlap will allow a higher granularity of offset
 # matching, but potentially more fingerprints.
-DEFAULT_OVERLAP_RATIO = 0.5
-
+DEFAULT_OVERLAP_RATIO = 0.5 # .5 # .5 was good
+ 
 # Degree to which a fingerprint can be paired with its neighbors --
 # higher will cause more fingerprints, but potentially better accuracy.
-DEFAULT_FAN_VALUE = 15
+DEFAULT_FAN_VALUE = 30 # 30
 
 # Minimum amplitude in spectrogram in order to be considered a peak.
 # This can be raised to reduce number of fingerprints, but can negatively
 # affect accuracy.
-DEFAULT_AMP_MIN = 10
+DEFAULT_AMP_MIN = 10 # 5
 
 # Number of cells around an amplitude peak in the spectrogram in order
 # for Dejavu to consider it a spectral peak. Higher values mean less
 # fingerprints and faster matching, but can potentially affect accuracy.
-PEAK_NEIGHBORHOOD_SIZE = 20
+PEAK_NEIGHBORHOOD_SIZE = 15 # 10 # 15 was good
 
 # Thresholds on how close or far fingerprints can be in time in order
 # to be paired as a fingerprint. If your max is too low, higher values of
 # DEFAULT_FAN_VALUE may not perform as expected.
 MIN_HASH_TIME_DELTA = 0
-MAX_HASH_TIME_DELTA = 200
+MAX_HASH_TIME_DELTA = 100 # 200 # 200 was good
 
 # If True, will sort peaks temporally for fingerprinting;
 # not sorting will cut down number of fingerprints, but potentially
@@ -51,7 +53,7 @@ PEAK_SORT = True
 # Number of bits to throw away from the front of the SHA1 hash in the
 # fingerprint calculation. The more you throw away, the less storage, but
 # potentially higher collisions and misclassifications when identifying songs.
-FINGERPRINT_REDUCTION = 20
+FINGERPRINT_REDUCTION = 0
 
 def fingerprint(channel_samples, Fs=DEFAULT_FS,
                 wsize=DEFAULT_WINDOW_SIZE,
@@ -94,8 +96,8 @@ def fingerprint(channel_samples, Fs=DEFAULT_FS,
     # find local maxima
     local_maxima = get_2D_peaks(arr2D, plot=plots, amp_min=amp_min)
 
-    msg = '   local_maxima: %d of frequency & time pairs'
-    print(colored(msg, attrs=['dark']) % len(local_maxima))
+    # msg = '   local_maxima: %d of frequency & time pairs'
+    # print(colored(msg, attrs=['dark']) % len(local_maxima))
 
     # return hashes
     return generate_hashes(local_maxima, fan_value=fan_value)
@@ -121,14 +123,17 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
     # filter peaks
     amps = amps.flatten()
     peaks = list(zip(i, j, amps))
-    peaks_filtered = [x for x in peaks if x[2] > amp_min]  # freq, time, amp
 
     # get indices for frequency and time
-    frequency_idx = [x[1] for x in peaks_filtered]
-    time_idx = [x[0] for x in peaks_filtered]
+    
 
     # scatter of the peaks
     if plot:
+      peaks_filtered = [x for x in peaks if x[2] > amp_min]
+      frequency_idx = [x[1] for x in peaks_filtered]
+      time_idx = [x[0] for x in peaks_filtered]
+
+
       fig, ax = plt.subplots()
       ax.imshow(arr2D)
       ax.scatter(time_idx, frequency_idx)
@@ -138,7 +143,13 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
       plt.gca().invert_yaxis()
       plt.show()
 
-    return list(zip(frequency_idx, time_idx))
+      return list(zip(frequency_idx, time_idx))
+    else:
+       peaks_filtered = np.array([x for x in peaks if x[2] > amp_min])  # freq, time, amp
+       lmaxima = list(peaks_filtered[:,:2])
+       return lmaxima
+
+
 
 # Hash list structure: sha1_hash[0:20] time_offset
 # example: [(e05b341a9b77a51fd26, 32), ... ]
@@ -146,23 +157,35 @@ def generate_hashes(peaks, fan_value=DEFAULT_FAN_VALUE):
     if PEAK_SORT:
       peaks.sort(key=itemgetter(1))
 
+    lp = len(peaks)
     # bruteforce all peaks
-    for i in range(len(peaks)):
-      for j in range(1, fan_value):
-        if (i + j) < len(peaks):
-
+    for i in range(lp):
+      freq1 = peaks[i][IDX_FREQ_I]
+      t1 = peaks[i][IDX_TIME_J]
+      jmin = i + 1
+      jmax = i + fan_value
+      if jmax > lp:
+        jmax = lp
+      for j in range(jmin, jmax):
           # take current & next peak frequency value
-          freq1 = peaks[i][IDX_FREQ_I]
-          freq2 = peaks[i + j][IDX_FREQ_I]
+
+          freq2 = peaks[j][IDX_FREQ_I]
 
           # take current & next -peak time offset
-          t1 = peaks[i][IDX_TIME_J]
-          t2 = peaks[i + j][IDX_TIME_J]
+          
+          t2 = peaks[j][IDX_TIME_J]
 
           # get diff of time offsets
           t_delta = t2 - t1
 
           # check if delta is between min & max
-          if t_delta >= MIN_HASH_TIME_DELTA and t_delta <= MAX_HASH_TIME_DELTA:
-            h = hashlib.sha1("%s|%s|%s" % (str(freq1), str(freq2), str(t_delta)))
-            yield (h.hexdigest()[0:FINGERPRINT_REDUCTION], t1)
+          if  MIN_HASH_TIME_DELTA <= t_delta <= MAX_HASH_TIME_DELTA:
+            # d = "{}|{}|{}".format(str(freq1), str(freq2), str(t_delta)).encode("utf-8")
+            d = "{}|{}".format(str(freq1), str(freq2)) # this might break the offset but might give us less hashes in total... might also blow up the matching... who knows
+          
+            yield(str(d),int(t1))
+            ## hashing is done at pickledb's dictionary level for this implementation
+            #h = pyhash.t1ha2_64()
+            #yield(str(h(d)),int(t1))
+
+
