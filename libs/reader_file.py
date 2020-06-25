@@ -1,4 +1,4 @@
-from reader import BaseReader
+from .reader import BaseReader
 import os
 from pydub import AudioSegment
 from pydub.utils import audioop
@@ -37,7 +37,7 @@ class FileReader(BaseReader):
       data = np.fromstring(audiofile._data, np.int16)
 
       channels = []
-      for chn in xrange(audiofile.channels):
+      for chn in range(audiofile.channels):
         channels.append(data[chn::audiofile.channels])
 
       fs = audiofile.frame_rate

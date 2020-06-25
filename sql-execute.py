@@ -19,4 +19,4 @@ if __name__ == '__main__':
 
   row = db.executeOne(args.query)
 
-  print row
+  print(row)

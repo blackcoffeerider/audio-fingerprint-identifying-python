@@ -95,7 +95,7 @@ def fingerprint(channel_samples, Fs=DEFAULT_FS,
     local_maxima = get_2D_peaks(arr2D, plot=plots, amp_min=amp_min)
 
     msg = '   local_maxima: %d of frequency & time pairs'
-    print colored(msg, attrs=['dark']) % len(local_maxima)
+    print(colored(msg, attrs=['dark']) % len(local_maxima))
 
     # return hashes
     return generate_hashes(local_maxima, fan_value=fan_value)
@@ -120,7 +120,7 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
 
     # filter peaks
     amps = amps.flatten()
-    peaks = zip(i, j, amps)
+    peaks = list(zip(i, j, amps))
     peaks_filtered = [x for x in peaks if x[2] > amp_min]  # freq, time, amp
 
     # get indices for frequency and time
@@ -138,7 +138,7 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
       plt.gca().invert_yaxis()
       plt.show()
 
-    return zip(frequency_idx, time_idx)
+    return list(zip(frequency_idx, time_idx))
 
 # Hash list structure: sha1_hash[0:20] time_offset
 # example: [(e05b341a9b77a51fd26, 32), ... ]

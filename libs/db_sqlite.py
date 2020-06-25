@@ -1,8 +1,8 @@
-from db import Database
-from config import get_config
+from .db import Database
+from .config import get_config
 import sqlite3
 import sys
-from itertools import izip_longest
+from itertools import zip_longest
 from termcolor import colored
 
 class SqliteDatabase(Database):
@@ -20,12 +20,12 @@ class SqliteDatabase(Database):
 
     self.cur = self.conn.cursor()
 
-    print(colored('sqlite - connection opened','white',attrs=['dark']))
+    print((colored('sqlite - connection opened','white',attrs=['dark'])))
 
   def __del__(self):
     self.conn.commit()
     self.conn.close()
-    print(colored('sqlite - connection has been closed','white',attrs=['dark']))
+    print((colored('sqlite - connection has been closed','white',attrs=['dark'])))
 
   def query(self, query, values = []):
     self.cur.execute(query, values)
@@ -65,8 +65,8 @@ class SqliteDatabase(Database):
     return self.executeAll(select['query'], select['values'])
 
   def insert(self, table, params):
-    keys = ', '.join(params.keys())
-    values = params.values()
+    keys = ', '.join(list(params.keys()))
+    values = list(params.values())
 
     query = "INSERT INTO songs (%s) VALUES (?, ?)" % (keys);
 
@@ -78,8 +78,8 @@ class SqliteDatabase(Database):
   def insertMany(self, table, columns, values):
     def grouper(iterable, n, fillvalue=None):
       args = [iter(iterable)] * n
-      return (filter(None, values) for values
-          in izip_longest(fillvalue=fillvalue, *args))
+      return ([_f for _f in values if _f] for values
+          in zip_longest(fillvalue=fillvalue, *args))
 
     for split_values in grouper(values, 1000):
       query = "INSERT OR IGNORE INTO %s (%s) VALUES (?, ?, ?)" % (table, ", ".join(columns))
