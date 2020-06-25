@@ -3,3 +3,4 @@ termcolor
 pyaudio
 wave
 pydub
+pickledb

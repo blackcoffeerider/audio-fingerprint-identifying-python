@@ -15,7 +15,7 @@ class SqliteDatabase(Database):
   def connect(self):
     config = get_config()
 
-    self.conn = sqlite3.connect(config['db.file'])
+    self.conn = sqlite3.connect(config['db.file'], isolation_level=None)
     self.conn.text_factory = str
 
     self.cur = self.conn.cursor()
@@ -85,7 +85,7 @@ class SqliteDatabase(Database):
       query = "INSERT OR IGNORE INTO %s (%s) VALUES (?, ?, ?)" % (table, ", ".join(columns))
       self.cur.executemany(query, split_values)
 
-    self.conn.commit()
+      self.conn.commit()
 
   def get_song_hashes_count(self, song_id):
     query = 'SELECT count(*) FROM %s WHERE song_fk = %d' % (self.TABLE_FINGERPRINTS, song_id)
